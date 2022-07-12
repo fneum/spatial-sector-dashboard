@@ -1,0 +1,35 @@
+,label,source,target,value
+0,DAC,co2 atmosphere,co2 stored,0.008514158492486068
+1,process emissions,process emissions,co2 atmosphere,1.9029970272185893e-05
+2,process emissions CC,process emissions,co2 atmosphere,13.81199809729097
+3,process emissions CC,process emissions,co2 stored,124.30798287561873
+4,OCGT,gas,co2 atmosphere,1.4435980363130863
+5,Sabatier,co2 stored,gas,5.763606705584987
+6,SMR,gas,co2 atmosphere,0.0010951164482748987
+7,SMR CC,gas,co2 atmosphere,0.0002223040510217292
+8,SMR CC,gas,co2 stored,0.002000736459195564
+9,residential rural gas boiler,gas,co2 atmosphere,2.7711949887551537
+10,services rural gas boiler,gas,co2 atmosphere,0.937856732697331
+11,residential urban decentral gas boiler,gas,co2 atmosphere,13.410115571723958
+12,services urban decentral gas boiler,gas,co2 atmosphere,5.309877056720264
+13,urban central gas boiler,gas,co2 atmosphere,31.605802780597298
+14,biogas to gas,co2 atmosphere,biogas,69.11124031212712
+15,biogas to gas,biogas,gas,69.11124031212712
+16,solid biomass for industry CC,co2 atmosphere,solid biomass,210.71993886028332
+17,solid biomass for industry CC,solid biomass,co2 stored,210.71993886028332
+18,gas for industry,gas,co2 atmosphere,0.0009747248435973851
+19,gas for industry CC,gas,co2 atmosphere,5.886200561597251
+20,gas for industry CC,gas,co2 stored,52.97580505437529
+21,Fischer-Tropsch,co2 stored,oil,266.420873267788
+22,urban central gas CHP,gas,co2 atmosphere,23.12396675249597
+23,urban central gas CHP CC,gas,co2 atmosphere,0.0002048594449964366
+24,urban central gas CHP CC,gas,co2 stored,0.00184373500496793
+25,urban central solid biomass CHP CC,co2 atmosphere,solid biomass,84.16839451304725
+26,urban central solid biomass CHP CC,solid biomass,co2 stored,84.16839451304725
+27,oil emissions,oil,co2 atmosphere,242.31694726453512
+28,agriculture machinery oil emissions,oil,co2 atmosphere,23.38899864854384
+29,process emissions from feedstocks,oil,process emissions,11.489999999999998
+0,fossil gas,fossil gas,gas,62.594927281531945
+0,fossil oil,fossil oil,oil,10.775072424137553
+0,co2 sequestration,co2 stored,co2 sequestration,199.99999995990828
+0,net co2 emissions,co2 atmosphere,net co2 emissions,0.0009846820782399845
