@@ -17,3 +17,5 @@ dependencies:
   - matplotlib
   - cartopy
   - descartes
+  - plotly
+  - matplotlib
