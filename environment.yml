@@ -1,0 +1,19 @@
+name: default
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.9
+  - streamlit
+  - xlrd
+  - openpyxl
+  - yaml
+  - pytables
+  - lxml
+  - numpy
+  - pandas
+  - geopandas>=0.11.0
+  - networkx
+  - shapely
+  - matplotlib
+  - cartopy
+  - descartes
