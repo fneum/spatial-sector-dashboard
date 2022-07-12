@@ -117,7 +117,9 @@ def plot_carbon_sankey(co2):
 colors = prepare_colors()
 
 ## DISPLAY
-st. set_page_config(layout="wide")
+st.set_page_config(layout="wide")
+
+st.warning("This dashboard is still under development!")
 
 with st.sidebar:
     st.title("Benefits of a Hydrogen Network in Europe")

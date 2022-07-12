@@ -4,18 +4,18 @@ channels:
 dependencies:
   - python>=3.9
   - streamlit
-  - xlrd
-  - openpyxl
+  #- xlrd
+  #- openpyxl
   - yaml
-  - pytables
-  - lxml
+  #- pytables
+  #- lxml
   - numpy
   - pandas
-  - geopandas>=0.11.0
-  - networkx
-  - shapely
+  #- geopandas>=0.11.0
+  #- networkx
+  #- shapely
   - matplotlib
-  - cartopy
-  - descartes
+  #- cartopy
+  #- descartes
   - plotly
   - matplotlib
