@@ -4,16 +4,16 @@ import numpy as np
 import yaml
 import plotly.graph_objects as go
 from matplotlib.colors import to_rgba
+from contextlib import suppress
 
 import geopandas as gpd
 import networkx as nx
 import hvplot.networkx as hvnx
 import holoviews as hv
-import pypsa
 import datetime
 import hvplot.pandas
 
-from helpers import prepare_colors, rename_techs_tyndp
+from helpers import prepare_colors, rename_techs_tyndp, get_cmap
 
 def plot_sankey(connections):
 
@@ -57,7 +57,7 @@ def plot_carbon_sankey(co2):
     labels = np.unique(co2[["source", "target"]])
 
     nodes = pd.Series({v: i for i, v in enumerate(labels)})
-    
+
     node_colors = pd.Series(nodes.index.map(colors).fillna("grey"), index=nodes.index)
 
     link_colors = [
@@ -97,7 +97,8 @@ def plot_carbon_sankey(co2):
 @st.cache
 def nodal_balance(power_grid, hydrogen_grid, carrier):
 
-    df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/balance-ts-{carrier}.csv", index_col=0, parse_dates=True)
+    fn = f"data/{power_grid}/{hydrogen_grid}/balance-ts-{carrier}.csv"
+    df = pd.read_csv(fn, index_col=0, parse_dates=True)
 
     df = df.groupby(df.columns.map(rename_techs_tyndp), axis=1).sum()
 
@@ -111,69 +112,73 @@ def nodal_balance(power_grid, hydrogen_grid, carrier):
 
 @st.cache
 def load_report(power_grid, hydrogen_grid):
+    fn1 = "data/report.csv"
+    fn2 = f"data/{power_grid}/{hydrogen_grid}/report.csv"
     return pd.concat([
-        pd.read_csv("data/report.csv", index_col=0, header=[0,1]),
-        pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/report.csv", index_col=0, header=[0,1])
+        pd.read_csv(fn1, index_col=0, header=[0,1]),
+        pd.read_csv(fn2, index_col=0, header=[0,1])
     ], axis=1)
+
 
 @st.cache(allow_output_mutation=True)
 def load_regions():
-    fn = "../../papers/spatial-sector/workflows-rev0/pypsa-eur/resources/regions_onshore_elec_s_181.geojson"
+    fn = "data/regions_onshore_elec_s_181.geojson"
     gdf = gpd.read_file(fn).set_index('name')
     gdf['name'] = gdf.index
     return gdf
 
 
-@st.cache(allow_output_mutation=True)
-def load_network():
-    return pypsa.Network("../../papers/spatial-sector/workflows-rev0/pypsa-eur-sec/results/20211218-181-h2/postnetworks/elec_s_181_lvopt__Co2L0-3H-T-H-B-I-A-solar+p3-linemaxext10_2030.nc")
+@st.cache
+def load_positions():
+    buses = pd.read_csv("data/buses.csv", index_col=0)
+    return pd.concat([buses.x, buses.y], axis=1).apply(tuple, axis=1).to_dict()
 
 
 @st.cache(allow_output_mutation=True)
-def make_electricity_graph():
+def make_electricity_graph(power_grid, hydrogen_grid):
 
-    n = load_network()
+    edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-electricity.csv", index_col=0)
 
-    rename_link_attrs = {'p_nom': 's_nom', 'p_nom_opt': 's_nom_opt'}
-
-    edges = pd.concat([
-        n.lines,
-        n.links.loc[n.links.carrier=='DC'].rename(rename_link_attrs, axis=1),
-    ], axis=0)
-
-    edges["Total Capacity (GW)"] = edges.s_nom_opt.div(1e3)
-    edges["Reinforcement (GW)"] = (edges.s_nom_opt - edges.s_nom).div(1e3)
-    edges["Original Capacity (GW)"] = edges.s_nom.div(1e3)
+    edges["Total Capacity (GW)"] = edges.s_nom_opt.clip(lower=1e-3)
+    edges["Reinforcement (GW)"] = (edges.s_nom_opt - edges.s_nom).clip(lower=1e-3)
+    edges["Original Capacity (GW)"] = edges.s_nom.clip(lower=1e-3)
+    edges["Maximum Capacity (GW)"] = edges.s_nom_max.clip(lower=1e-3)
     edges["Technology"] = edges.carrier
+    edges["Length (km)"] = edges.length
 
-    attr = ["Total Capacity (GW)", "Reinforcement (GW)", "Original Capacity (GW)", "Technology"]
+    attr = ["Total Capacity (GW)", "Reinforcement (GW)", "Original Capacity (GW)", "Maximum Capacity (GW)", "Technology", "Length (km)"]
     G = nx.from_pandas_edgelist(edges, 'bus0', 'bus1', edge_attr=attr)
 
-    pos = pd.concat([n.buses.x, n.buses.y], axis=1).apply(tuple, axis=1).to_dict()
+    pos = load_positions()
 
     return G, pos
 
 @st.cache(allow_output_mutation=True)
-def make_hydrogen_graph():
+def make_hydrogen_graph(power_grid, hydrogen_grid):
 
-    n = load_network()
+    edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-hydrogen.csv", index_col=0)
 
-    edges = n.links.query("carrier == 'H2 pipeline'")
+    edges["Total Capacity (GW)"] = edges.p_nom_opt.clip(lower=1e-3)
+    edges["New Capacity (GW)"] = edges.p_nom_opt_new.clip(lower=1e-3)
+    edges["Retrofitted Capacity (GW)"] = edges.p_nom_opt_retro.clip(lower=1e-3)
+    edges["Maximum Retrofitting (GW)"] = edges.max_retro.clip(lower=1e-3)
+    edges["Length (km)"] = edges.length
+    edges["Name"] = edges.index
 
-    edges["Total Capacity (GW)"] = edges.p_nom_opt.div(1e3)
+    attr = ["Total Capacity (GW)", "New Capacity (GW)", "Retrofitted Capacity (GW)", "Maximum Retrofitting (GW)", "Length (km)", "Name"]
+    G = nx.from_pandas_edgelist(edges, 'bus0', 'bus1', edge_attr=attr)
 
-    G = nx.from_pandas_edgelist(edges, 'bus0', 'bus1', edge_attr=["Total Capacity (GW)"])
-
-    pos = pd.concat([n.buses.x, n.buses.y], axis=1).apply(tuple, axis=1).to_dict()
+    pos = load_positions()
 
     return G, pos
+
 
 def parse_spatial_options(x):
     return " - ".join(x) if x != 'Nothing' else 'Nothing'
 
 ### MAIN
 
-with open("data/config.yaml") as file:
+with open("data/config.yaml", encoding='utf-8') as file:
     config = yaml.safe_load(file)
 
 colors = prepare_colors(config)
@@ -181,11 +186,16 @@ colors = prepare_colors(config)
 preferred_order = pd.Index(config['preferred_order'])
 
 ## DISPLAY
-st.set_page_config(page_title='European Hydrogen Network', layout="wide")
 
-st.write('<style>div.block-container{padding-top:.5rem; padding-bottom:0rem; padding-right:1.2rem; padding-left:1.2rem}</style>', unsafe_allow_html=True)
+st.set_page_config(
+    page_title='European Hydrogen Network',
+    layout="wide"
+)
 
-# st.warning("This dashboard is still under development!")
+style = '<style>div.block-container{padding-top:.5rem; padding-bottom:0rem; padding-right:1.2rem; padding-left:1.2rem}</style>'
+st.write(style, unsafe_allow_html=True)
+
+## SIDEBAR
 
 with st.sidebar:
     st.title("Benefits of a Hydrogen Network in Europe")
@@ -193,17 +203,34 @@ with st.sidebar:
     st.markdown("""
         **Fabian Neumann, Elisabeth Zeyen, Marta Victoria, Tom Brown**
 
-        Explore trade-offs between electricity grid expansion and a new hydrogen network with repurposed gas pipelines in the European
-        energy system.
+        Explore trade-offs between electricity grid expansion and a new hydrogen
+        network with repurposed gas pipelines in the European energy system.
     """)
 
     choices = {"electricity": "yes", "no-electricity": "no"}
-    power_grid = st.radio(":hammer_and_wrench: Electricity network expansion", choices, format_func=lambda x: choices[x], horizontal=True)
+    power_grid = st.radio(
+        ":hammer_and_wrench: Electricity network expansion",
+        choices, 
+        format_func=lambda x: choices[x],
+        horizontal=True
+    )
 
     choices = {"hydrogen": "yes", "no-hydrogen": "no"}
-    hydrogen_grid = st.radio(":hammer_and_wrench: Hydrogen network expansion", choices, format_func=lambda x: choices[x], horizontal=True)
+    hydrogen_grid = st.radio(
+        ":hammer_and_wrench: Hydrogen network expansion",
+        choices,
+        format_func=lambda x: choices[x],
+        horizontal=True
+    )
 
-    display = st.radio(":tv: View", ["Scenario comparison", "Spatial configurations", "System operation", "Sankey of energy flows", "Sankey of carbon flows"])
+    pages = [
+        "Scenario comparison",
+        "Spatial configurations",
+        "System operation",
+        "Sankey of energy flows",
+        "Sankey of carbon flows"
+    ]
+    display = st.radio("Pages", pages)
 
     st.info("""
         :book:  [Read the paper](http://arxiv.org/abs/2207.05816)
@@ -215,17 +242,22 @@ with st.sidebar:
 
     with st.expander("Details"):
         st.write("""
-            All results were created using the open European energy system model PyPSA-Eur-Sec.
-            The model covers all energy sectors including electricity, buildings, transport, agriculture and industry
-            at high spatio-temporal resolution. The model code is available on
+            All results were created using the open European energy system model
+            PyPSA-Eur-Sec. The model covers all energy sectors including
+            electricity, buildings, transport, agriculture and industry at high
+            spatio-temporal resolution. The model code is available on
             [Github](http://github.com/pypsa/pypsa-eur-sec).
         """)
 
+## PAGES
 
 if display == "Scenario comparison":
 
     st.write(" ")
-    
+    st.write(" ")
+    st.write(" ")
+    st.write(" ")
+
     st.image("data/graphical-abstract.png")
 
 if display == "System operation":
@@ -235,28 +267,11 @@ if display == "System operation":
     _, col1, col_2, _, col_3, _ = st.columns([1,8,6,2,24,1])
 
     with col1:
-        choices = {
-            "total-electricity": "Total Electricity",
-            "AC": "High Voltage Electricity",
-            "low voltage": "Low Voltage Electricity",
-            "H2": "Hydrogen",
-            "gas": "Methane",
-            #"methanol": "Methanol",
-            "oil": "Liquid Hydrocarbons",
-            "co2": "Carbon Dioxide",
-            "co2 stored": "Stored Carbon Dioxide",
-            "total-heat": "Total Heating",
-            "urban central heat": "Urban Central Heating",
-            "residential rural heat": "Residential Rural Building Heating"
-        }
+        choices = config["operation"]["carrier"]
         carrier = st.selectbox("Carrier", choices, format_func=lambda x: choices[x])
 
     with col_2:
-        choices = {
-            "3H": "3-hourly",
-            "24H": "daily",
-            "168H": "weekly",
-        }
+        choices = config["operation"]["resolution"]
         res = st.selectbox("Resolution", choices, format_func=lambda x: choices[x], index=1)
 
     with col_3:
@@ -277,21 +292,34 @@ if display == "System operation":
     supply = ts.where(ts > 0).dropna(axis=1, how='all').fillna(0)
     consumption = -ts.where(ts < 0).dropna(axis=1, how='all').fillna(0)
 
-    ylim = max(consumption.sum(axis=1).max(), supply.sum(axis=1).max())
+    ylim = max(
+        consumption.sum(axis=1).max(),
+        supply.sum(axis=1).max()
+    )
 
-    kwargs = dict(stacked=True, line_width=0, xlabel='', width=1300, height=350, hover=False, ylim=(0,ylim), legend='top')
+    kwargs = dict(
+        stacked=True,
+        line_width=0,
+        xlabel='',
+        width=1300,
+        height=350,
+        hover=False,
+        ylim=(0,ylim),
+        legend='top'
+    )
 
-    p_supply = supply.hvplot.area(**kwargs, color=[colors[c] for c in supply.columns], ylabel="Supply [GW]")
-    p_consumption = consumption.hvplot.area(**kwargs, color=[colors[c] for c in consumption.columns], ylabel="Consumption [GW]")
+    color = [colors[c] for c in supply.columns]
+    p_supply = supply.hvplot.area(**kwargs, color=color, ylabel="Supply [GW]")
 
-    try:
-        p_supply.get_dimension('Variable').label = ''
-    except:
-        pass
-    p_consumption.get_dimension('Variable').label = ''
+    color = [colors[c] for c in consumption.columns]
+    p_consumption = consumption.hvplot.area(**kwargs, color=color, ylabel="Consumption [GW]")
+
+    with suppress(KeyError): p_supply.get_dimension('Variable').label = ''
+    with suppress(KeyError): p_consumption.get_dimension('Variable').label = ''
 
     st.bokeh_chart(hv.render(p_supply, backend='bokeh'), use_container_width=True)
     st.bokeh_chart(hv.render(p_consumption, backend='bokeh'), use_container_width=True)
+
 
 if display == "Spatial configurations":
 
@@ -315,7 +343,6 @@ if display == "Spatial configurations":
         "prices": "Market Prices (€/MWh)",
         "storage": "Storage Capacity (GWh)",
     }
-
 
     translate_1 = {
         "electricity": "Electricity",
@@ -344,90 +371,35 @@ if display == "Spatial configurations":
     df.rename(columns=translate_0, level=0, inplace=True)
     df.rename(columns=translate_1, level=1, inplace=True)
 
-
     st.title("Spatial Configurations")
 
-    col1, col2, col3 = st.columns(3)
+    options = config["spatial"]["nodal_options"]
+    network_options = config["spatial"]["network_options"]
 
-    options = [
-        ("Nothing",),
-        ("Potential (TWh)", "Hydrogen Storage (cavern)"),
-        ("Potential (TWh)", "Biogas"),
-        ("Potential (TWh)", "Solid Biomass"),
-        ("Capacity (GW)", "Onshore Wind"),
-        ("Capacity (GW)", "Offshore Wind (AC)"),
-        ("Capacity (GW)", "Offshore Wind (DC)"),
-        ("Capacity (GW)", "Solar PV (rooftop)"),
-        ("Capacity (GW)", "Solar PV (utility)"),
-        ("Capacity (GW)", "H2 Electrolysis"),
-        ("Capacity (GW)", "Fischer-Tropsch"),
-        ("Capacity (GW)", "Sabatier"),
-        ("Capacity (GW)", "H2 Fuel Cell"),
-        ("Capacity (GW)", "Hydro Reservoir"),
-        ("Capacity (GW)", "Pumped-hydro storage"),
-        ("Capacity (GW)", "Run of River"),
-        ("Capacity (GW)", "battery charger"),
-        ("Capacity (GW)", "battery discharger"),
-        ("Capacity (GW)", "home battery charger"),
-        ("Capacity (GW)", "home battery discharger"),
-        ("Capacity (GW)", "Ground-sourced Heat Pump"),
-        ("Capacity (GW)", "Air-sourced Heat Pump"),
-        ("Capacity (GW)", "electricity distribution grid"),
-        ("Demand (TWh)", "Electricity"),
-        ("Demand (TWh)", "Heating"),
-        ("Demand (TWh)", "Hydrogen"),
-        ("Market Values (€/MWh)", "Onshore Wind"),
-        ("Market Values (€/MWh)", "Offshore Wind (AC)"),
-        ("Market Values (€/MWh)", "Offshore Wind (DC)"),
-        ("Market Values (€/MWh)", "Solar PV (utility)"),
-        ("Market Values (€/MWh)", "Solar PV (rooftop)"),
-        ("Market Prices (€/MWh)", "Hydrogen"),
-        ("Market Prices (€/MWh)", "Electricity"),
-        ("Import-Export Balance (TWh)", "Total"),
-        ("Import-Export Balance (TWh)", "Electricity"),
-        ("Import-Export Balance (TWh)", "Hydrogen"),
-        ("Import-Export Balance (TWh)", "Methane"),
-        ("Import-Export Balance (TWh)", "Liquid Hydrocarbons"),
-        ("Capacity Factors (%)", "Solar PV (rooftop)"),
-        ("Capacity Factors (%)", "Solar PV (utility)"),
-        ("Capacity Factors (%)", "Onshore Wind"),
-        ("Capacity Factors (%)", "Offshore Wind (DC)"),
-        ("Capacity Factors (%)", "Offshore Wind (AC)"),
-        ("Storage Capacity (GWh)", "Hydrogen"),
-        ("Storage Capacity (GWh)", "battery"),
-        ("Storage Capacity (GWh)", "home battery"),
-        ("Curtailment (%)", "Onshore Wind"),
-        ("Curtailment (%)", "Offshore Wind (AC)"),
-        ("Curtailment (%)", "Offshore Wind (DC)"),
-        ("Curtailment (%)", "Solar PV (rooftop)"),
-        ("Curtailment (%)", "Solar PV (utility)"),
-    ]
+    options.insert(0, ["Nothing"])
+    network_options.insert(0, ["Nothing"])
+
+    options = [tuple(o) for o in options]
+    network_options = [tuple(o) for o in network_options]
+
+    _, col1, col2, col3, _ = st.columns([1,30,30,30,1])
 
     with col1:
-        sel_r = st.selectbox(
+        r_sel = st.selectbox(
             "Regions", options,
             help='Choose which data should be shown in choropleth.',
             format_func=parse_spatial_options
-        )  
-    
+        )
+
     with col2:
-        network_options = [
-            ("Nothing",),
-            ("Hydrogen Network", "Total Capacity (GW)"),
-            ("Hydrogen Network", "Retrofitted Capacity (GW)"),
-            ("Hydrogen Network", "New Capacity (GW)"),
-            ("Electricity Network", "Total Capacity (GW)"),
-            ("Electricity Network", "Reinforcement (GW)"),
-            ("Electricity Network", "Original Capacity (GW)"),
-        ]
-        sel_n = st.selectbox(
-            "Network", network_options, 
+        n_sel = st.selectbox(
+            "Network", network_options,
             help='Choose which network data should be displayed.',
             format_func=parse_spatial_options
         )
 
     with col3:
-        sel_b = st.selectbox(
+        b_sel = st.selectbox(
             "Nodes", options,
             help='Choose which data should be shown on nodes.',
             format_func=parse_spatial_options
@@ -435,7 +407,13 @@ if display == "Spatial configurations":
 
     gdf = load_regions()
 
-    if sel_r[0] == 'Nothing':
+    opts = dict(
+        xaxis=None,
+        yaxis=None,
+        active_tools=['pan', 'wheel_zoom']
+    )
+
+    if r_sel[0] == 'Nothing':
 
         kwargs = dict(
             color='white',
@@ -444,26 +422,14 @@ if display == "Spatial configurations":
         )
     
     else:
-        # st.write(df.columns.levels[1])
-        # st.write(df.columns.levels[0])
 
-        col = " - ".join(sel_r)
-        gdf[col] = df[sel_r].reindex(gdf.index)
-
-        if "heat" in col.lower():
-            cmap = "Reds"
-        elif "solar" in col.lower():
-            cmap = "Oranges"
-        elif "hydrogen" in col.lower():
-            cmap = "Purples"
-        elif "bio" in col.lower() or "battery" in col.lower():
-            cmap = "Greens"
-        elif "Import-Export" in col:
-            cmap = "PiYG_r"
-        else: 
-            cmap = 'Blues'
-
+        col = " - ".join(r_sel)
+        gdf[col] = df[r_sel].reindex(gdf.index)
         gdf["Region"] = gdf.index
+
+        c = col.lower()
+        cmap = get_cmap(c)
+
         kwargs = dict(
             alpha=0.7,
             c=col,
@@ -474,59 +440,70 @@ if display == "Spatial configurations":
 
     plot = gdf.hvplot(
         geo=True,
-        height=750,
-        tiles="OSM",
+        height=720,
+        tiles=config["tiles"],
         **kwargs
-    ).opts(
-        xaxis=None,
-        yaxis=None,
-        active_tools=['pan', 'wheel_zoom'],
-    )
+    ).opts(**opts)
 
-    if not sel_n[0] == 'Nothing':
+    if n_sel[0] == "Hydrogen Network" and not hydrogen_grid == 'no-hydrogen':
 
-        if sel_n[0] == "Hydrogen Network":
-            G, pos = make_hydrogen_graph()
-        else:
-            G, pos = make_electricity_graph()
+        H, posH = make_hydrogen_graph(power_grid, hydrogen_grid)
 
-        col = " - ".join(sel_b)
-        nx.set_node_attributes(G, df[sel_b], "test")
+        scale = pd.Series(nx.get_edge_attributes(H, n_sel[1])).max() / 10
 
         network_plot = hvnx.draw(
-            G,
-            pos=pos,
+            H,
+            pos=posH,
             responsive=True,
             geo=True,
             node_size=5,
             node_color='k',
-            edge_color=sel_n[1],
+            edge_color=n_sel[1],
             inspection_policy="edges",
-            edge_width=hv.dim(sel_n[1]) / 2,
-        ).opts(
-            active_tools=['pan', 'wheel_zoom']
-        )
+            edge_width=hv.dim(n_sel[1]) / scale,
+        ).opts(**opts)
 
         plot *= network_plot
 
-    if not sel_b[0] == "Nothing":
+    elif n_sel[0] == "Electricity Network":
+
+        E, posE = make_electricity_graph(power_grid, hydrogen_grid)
+
+        network_plot = hvnx.draw(
+            E,
+            pos=posE,
+            responsive=True,
+            geo=True,
+            node_size=5,
+            node_color='k',
+            edge_color=n_sel[1],
+            inspection_policy="edges",
+            edge_width=hv.dim(n_sel[1]) / 3,
+        ).opts(**opts)
+
+        plot *= network_plot
+
+    elif n_sel[0] == "Hydrogen Network" and hydrogen_grid == 'no-hydrogen':
+        st.warning("Asked to plot hydrogen network in scenario without hydrogen network. Skipping request.")
+
+    if not b_sel[0] == "Nothing":
 
         points = gdf.copy()
-        points.geometry = points.representative_point()
+        coords = pd.read_csv("data/buses.csv", index_col=0)
+        points.geometry = gpd.points_from_xy(coords.x, coords.y, crs=4326)
 
-        col = " - ".join(sel_b)
-        points[col] = df[sel_b].reindex(gdf.index)
+        col = " - ".join(b_sel)
+        points[col] = df[b_sel].reindex(gdf.index)
+
+        marker_size = points[col] / points[col].max() * 300
 
         node_plot = points.hvplot(
             geo=True,
             hover_cols=['Region', col],
-            s=points[col]*10,
-            c="#555555"
-        ).opts(
-            xaxis=None,
-            yaxis=None,
-            active_tools=['pan', 'wheel_zoom'],
-        )
+            s=marker_size,
+            c="#454545",
+            alpha=0.7
+        ).opts(**opts)
 
         plot *= node_plot
 
@@ -534,9 +511,7 @@ if display == "Spatial configurations":
 
 if display == "Sankey of carbon flows":
 
-    st.write("""
-    # Carbon Sankey
-    """)
+    st.title("Carbon Sankes")
 
     df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey-carbon.csv")
 
@@ -545,9 +520,7 @@ if display == "Sankey of carbon flows":
 
 if display == "Sankey of energy flows":
 
-    st.write("""
-    # Energy Sankey
-    """)
+    st.title("Energy Sankes")
 
     df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey.csv")
 

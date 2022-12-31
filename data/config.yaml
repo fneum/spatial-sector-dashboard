@@ -1,3 +1,5 @@
+tiles: "OSM"
+
 tech_colors:
   # wind
   onwind: "#235ebc"
@@ -223,3 +225,84 @@ preferred_order:
   - power-to-liquid
   - CO2 sequestration
   - CCS
+
+spatial:
+  nodal_options:
+    - ["Potential (TWh)", "Hydrogen Storage (cavern)"]
+    - ["Potential (TWh)", "Biogas"]
+    - ["Potential (TWh)", "Solid Biomass"]
+    - ["Capacity (GW)", "Onshore Wind"]
+    - ["Capacity (GW)", "Offshore Wind (AC)"]
+    - ["Capacity (GW)", "Offshore Wind (DC)"]
+    - ["Capacity (GW)", "Solar PV (rooftop)"]
+    - ["Capacity (GW)", "Solar PV (utility)"]
+    - ["Capacity (GW)", "H2 Electrolysis"]
+    - ["Capacity (GW)", "Fischer-Tropsch"]
+    - ["Capacity (GW)", "Sabatier"]
+    - ["Capacity (GW)", "H2 Fuel Cell"]
+    - ["Capacity (GW)", "Hydro Reservoir"]
+    - ["Capacity (GW)", "Pumped-hydro storage"]
+    - ["Capacity (GW)", "Run of River"]
+    - ["Capacity (GW)", "battery charger"]
+    - ["Capacity (GW)", "battery discharger"]
+    - ["Capacity (GW)", "home battery charger"]
+    - ["Capacity (GW)", "home battery discharger"]
+    - ["Capacity (GW)", "Ground-sourced Heat Pump"]
+    - ["Capacity (GW)", "Air-sourced Heat Pump"]
+    - ["Capacity (GW)", "electricity distribution grid"]
+    - ["Demand (TWh)", "Electricity"]
+    - ["Demand (TWh)", "Heating"]
+    - ["Demand (TWh)", "Hydrogen"]
+    - ["Market Values (€/MWh)", "Onshore Wind"]
+    - ["Market Values (€/MWh)", "Offshore Wind (AC)"]
+    - ["Market Values (€/MWh)", "Offshore Wind (DC)"]
+    - ["Market Values (€/MWh)", "Solar PV (utility)"]
+    - ["Market Values (€/MWh)", "Solar PV (rooftop)"]
+    - ["Market Prices (€/MWh)", "Hydrogen"]
+    - ["Market Prices (€/MWh)", "Electricity"]
+    - ["Import-Export Balance (TWh)", "Total"]
+    - ["Import-Export Balance (TWh)", "Electricity"]
+    - ["Import-Export Balance (TWh)", "Hydrogen"]
+    - ["Import-Export Balance (TWh)", "Methane"]
+    - ["Import-Export Balance (TWh)", "Liquid Hydrocarbons"]
+    - ["Capacity Factors (%)", "Solar PV (rooftop)"]
+    - ["Capacity Factors (%)", "Solar PV (utility)"]
+    - ["Capacity Factors (%)", "Onshore Wind"]
+    - ["Capacity Factors (%)", "Offshore Wind (DC)"]
+    - ["Capacity Factors (%)", "Offshore Wind (AC)"]
+    - ["Storage Capacity (GWh)", "Hydrogen"]
+    - ["Storage Capacity (GWh)", "battery"]
+    - ["Storage Capacity (GWh)", "home battery"]
+    - ["Curtailment (%)", "Onshore Wind"]
+    - ["Curtailment (%)", "Offshore Wind (AC)"]
+    - ["Curtailment (%)", "Offshore Wind (DC)"]
+    - ["Curtailment (%)", "Solar PV (rooftop)"]
+    - ["Curtailment (%)", "Solar PV (utility)"]
+  network_options:
+    - ["Hydrogen Network", "Total Capacity (GW)"]
+    - ["Hydrogen Network", "Retrofitted Capacity (GW)"]
+    - ["Hydrogen Network", "New Capacity (GW)"]
+    - ["Hydrogen Network", "Maximum Retrofitting (GW)"]
+    - ["Electricity Network", "Total Capacity (GW)"]
+    - ["Electricity Network", "Reinforcement (GW)"]
+    - ["Electricity Network", "Original Capacity (GW)"]
+    - ["Electricity Network", "Maximum Capacity (GW)"]
+
+operation:
+  carrier:
+    total-electricity: Total Electricity
+    AC: High Voltage Electricity
+    low voltage: Low Voltage Electricity
+    H2: Hydrogen
+    gas: Methane
+    # methanol: Methanol
+    oil: Liquid Hydrocarbons
+    co2: Carbon Dioxide
+    co2 stored: Stored Carbon Dioxide
+    total-heat: Total Heating
+    urban central heat: Urban Central Heating
+    residential rural heat: Residential Rural Building Heating
+  resolution:
+    3H: 3-hourly
+    24H: daily
+    168H: weekly

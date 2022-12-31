@@ -123,3 +123,17 @@ def prepare_colors(config):
     colors["urban central solid biomass CHP CC"] = colors["CHP"]
     
     return colors
+
+def get_cmap(c):
+    if "heat" in c:
+        return "Reds"
+    elif "solar" in c:
+        return "Oranges"
+    elif "hydrogen" in c:
+        return "Purples"
+    elif "bio" in c or "battery" in c:
+        return "Greens"
+    elif "import-export" in c:
+        return "PiYG_r"
+    else: 
+        return 'Blues'
