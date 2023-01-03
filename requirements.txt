@@ -6,3 +6,6 @@ matplotlib
 plotly
 bokeh
 hvplot
+geopandas
+networkx
+holoviews
