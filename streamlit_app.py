@@ -5,7 +5,7 @@ import yaml
 import plotly.graph_objects as go
 from matplotlib.colors import to_rgba
 from contextlib import suppress
-
+from bokeh.models import HoverTool  
 import geopandas as gpd
 import networkx as nx
 import hvplot.networkx as hvnx
@@ -176,6 +176,35 @@ def make_hydrogen_graph(power_grid, hydrogen_grid):
 def parse_spatial_options(x):
     return " - ".join(x) if x != 'Nothing' else 'Nothing'
 
+
+#@st.cache
+def load_summary(which):
+
+    df = pd.read_csv(f"data/{which}.csv", header=[0,1], index_col=0)
+
+    column_dict = {
+        "1.0": "without power expansion",
+        "opt": "with power grid expansion",
+        "H2 grid": "with hydrogen network",
+        "no H2 grid": "without hydrogen network",
+    }
+
+    df.rename(columns=column_dict, inplace=True)
+    df.columns = ["\n".join(col).strip() for col in df.columns.values]
+
+    df = df.groupby(df.index.map(rename_techs_tyndp), axis=0).sum()
+
+    missing = df.index.difference(preferred_order)
+    order = preferred_order.intersection(df.index).append(missing)
+    df = df.loc[order, :]
+
+    to_drop = df.index[df.abs().max(axis=1).fillna(0.0) < 1]
+    print(to_drop)
+    df.drop(to_drop, inplace=True)
+
+    return df[df.sum().sort_values().index]
+
+
 ### MAIN
 
 with open("data/config.yaml", encoding='utf-8') as file:
@@ -253,12 +282,25 @@ with st.sidebar:
 
 if display == "Scenario comparison":
 
-    st.write(" ")
-    st.write(" ")
-    st.write(" ")
-    st.write(" ")
+    st.title("Scenario Comparison")
 
-    st.image("data/graphical-abstract.png")
+    choices = config["scenarios"]
+    file = st.selectbox("View", choices, format_func=lambda x: choices[x], label_visibility='hidden')
+
+    df = load_summary(file)
+
+    color = [colors[c] for c in df.index]
+
+    unit = choices[file].split(" (")[1][:-1] # ugly
+    tooltips = [
+        ('technology', "@Variable"),
+        ('value', " ".join(['@value{0.00}', unit])),
+    ]
+    hover = HoverTool(tooltips=tooltips)
+
+    plot = df.T.hvplot.bar(stacked=True, height=720, color=color, line_width=0, ylabel=choices[file]).opts(tools=[hover])
+
+    st.bokeh_chart(hv.render(plot, backend='bokeh'), use_container_width=True)
 
 if display == "System operation":
 

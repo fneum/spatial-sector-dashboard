@@ -80,6 +80,7 @@ tech_colors:
   industry electricity: '#2d2a66'
   industry new electricity: '#2d2a66'
   agriculture electricity: '#494778'
+  agriculture: '#494778'
   # battery + EVs
   battery: '#ace37f'
   battery storage: '#ace37f'
@@ -306,3 +307,10 @@ operation:
     3H: 3-hourly
     24H: daily
     168H: weekly
+
+scenarios:
+  costs: Total System Costs (bn€/a)
+  "capacities-generators": Generation Capacities (GW)
+  "capacities-stores": Storage Capacities (TWh)
+  "capacities-links": Conversion Capacities (GW)
+  energy: Energy Balance (TWh)

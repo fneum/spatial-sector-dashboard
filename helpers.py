@@ -91,6 +91,16 @@ def rename_techs_tyndp(tech):
         return "industry electricity"
     elif "oil emissions" in tech:
         return "oil emissions"
+    elif "agriculture" in tech:
+        return "agriculture"
+    elif "H2 for" in tech or tech == "land transport fuel cell":
+        return "H2"
+    elif "EV" in tech or tech in ['Li ion', "V2G"]:
+        return "land transport EV"
+    elif tech == "electricity" or tech == "industry electricity":
+        return "electricity"
+    elif "co2" in tech:
+        return "CCS"
     else:
         return tech
 

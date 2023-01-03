@@ -4,3 +4,5 @@ numpy
 pandas
 matplotlib
 plotly
+bokeh
+hvplot
