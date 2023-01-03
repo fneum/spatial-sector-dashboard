@@ -10,5 +10,3 @@ geopandas
 networkx
 holoviews
 geoviews
-cartopy
-pyproj
