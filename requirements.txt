@@ -12,3 +12,4 @@ holoviews
 geoviews
 cartopy
 pyproj
+scipy
