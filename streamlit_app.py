@@ -114,10 +114,62 @@ def nodal_balance(power_grid, hydrogen_grid, carrier):
 def load_report(power_grid, hydrogen_grid):
     fn1 = "data/report.csv"
     fn2 = f"data/{power_grid}/{hydrogen_grid}/report.csv"
-    return pd.concat([
+    df = pd.concat([
         pd.read_csv(fn1, index_col=0, header=[0,1]),
         pd.read_csv(fn2, index_col=0, header=[0,1])
     ], axis=1)
+
+    translate_0 = {
+        "demand": "Demand (TWh)",
+        "capacity_factor": "Capacity Factors (%)",
+        "cop": "Coefficient of Performance (-)",
+        "biomass_potentials": "Potential (TWh)",
+        "salt_caverns": "Potential (TWh)",
+        "potential_used": "Used Potential (%)",
+        "curtailment": "Curtailment (%)",
+        "capacity": "Capacity (GW)",
+        "io": "Import-Export Balance (TWh)",
+        "lcoe": "Levelised Cost of Electricity (€/MWh)",
+        "market_value": "Market Values (€/MWh)",
+        "prices": "Market Prices (€/MWh)",
+        "storage": "Storage Capacity (GWh)",
+    }
+
+    translate_1 = {
+        "electricity": "Electricity",
+        "AC": "Electricity",
+        "H2": "Hydrogen",
+        "hydrogen": "Hydrogen",
+        "oil": "Liquid Hydrocarbons",
+        "total": "Total",
+        "gas": "Methane",
+        "heat": "Heat",
+        "offwind-ac": "Offshore Wind (AC)",
+        "offwind-dc": "Offshore Wind (DC)",
+        "onwind": "Onshore Wind",
+        "onshore wind": "Onshore Wind",
+        "offshore wind": "Offshore Wind",
+        "hydroelectricity": "Hydro Electricity",
+        "PHS": "Pumped-hydro storage",
+        "hydro": "Hydro Reservoir",
+        "ror": "Run of River",
+        "solar": "Solar PV (utility)",
+        "solar PV": "Solar PV (utility)",
+        "solar rooftop": "Solar PV (rooftop)",
+        "ground heat pump": "Ground-sourced Heat Pump",
+        "air heat pump": "Air-sourced Heat Pump",
+        "biogas": "Biogas",
+        "biomass": "Biomass",
+        "solid biomass": "Solid Biomass",
+        "nearshore caverns": "Hydrogen Storage (nearshore cavern)",
+        "onshore caverns": "Hydrogen Storage (onshore cavern)",
+        "offshore caverns": "Hydrogen Storage (offshore cavern)",
+    }
+
+    df.rename(columns=translate_0, level=0, inplace=True)
+    df.rename(columns=translate_1, level=1, inplace=True)
+
+    return df
 
 
 @st.cache(allow_output_mutation=True)
@@ -367,51 +419,7 @@ if display == "Spatial configurations":
 
     df = load_report(power_grid, hydrogen_grid)
 
-    #mapper1 = df.columns.get_level_values(0)
-    #mapper2 = df.columns.get_level_values(1).map(rename_techs_tyndp)
-    #df = df.groupby([mapper1, mapper2], axis=1).sum()
-
-    translate_0 = {
-        "demand": "Demand (TWh)",
-        "capacity_factor": "Capacity Factors (%)",
-        "biomass_potentials": "Potential (TWh)",
-        "salt_caverns": "Potential (TWh)",
-        "potential_used": "Used Potential (%)",
-        "curtailment": "Curtailment (%)",
-        "capacity": "Capacity (GW)",
-        "io": "Import-Export Balance (TWh)",
-        "lcoe": "Levelised Cost of Electricity (€/MWh)",
-        "market_value": "Market Values (€/MWh)",
-        "prices": "Market Prices (€/MWh)",
-        "storage": "Storage Capacity (GWh)",
-    }
-
-    translate_1 = {
-        "electricity": "Electricity",
-        "AC": "Electricity",
-        "H2": "Hydrogen",
-        "hydrogen": "Hydrogen",
-        "oil": "Liquid Hydrocarbons",
-        "total": "Total",
-        "gas": "Methane",
-        "heat": "Heating",
-        "offwind-ac": "Offshore Wind (AC)",
-        "offwind-dc": "Offshore Wind (DC)",
-        "onwind": "Onshore Wind",
-        "PHS": "Pumped-hydro storage",
-        "hydro": "Hydro Reservoir",
-        "ror": "Run of River",
-        "solar": "Solar PV (utility)",
-        "solar rooftop": "Solar PV (rooftop)",
-        "ground-sourced heat pump": "Ground-sourced Heat Pump",
-        "air-sourced heat pump": "Air-sourced Heat Pump",
-        "biogas": "Biogas",
-        "solid biomass": "Solid Biomass",
-        "nearshore": "Hydrogen Storage (cavern)",
-    }
-
-    df.rename(columns=translate_0, level=0, inplace=True)
-    df.rename(columns=translate_1, level=1, inplace=True)
+    st.table(df.columns)
 
     st.title("Spatial Configurations")
 
