@@ -522,7 +522,7 @@ if display == "Spatial configurations":
         )
 
     plot = gdf.hvplot(
-        geo=True,
+        #geo=True,
         height=720,
         tiles=config["tiles"],
         **kwargs
@@ -540,7 +540,7 @@ if display == "Spatial configurations":
             H,
             pos=pos,
             responsive=True,
-            geo=True,
+            #geo=True,
             node_size=5,
             node_color='k',
             edge_color=n_sel[1],
@@ -560,7 +560,7 @@ if display == "Spatial configurations":
             E,
             pos=pos,
             responsive=True,
-            geo=True,
+            #geo=True,
             node_size=5,
             node_color='k',
             edge_color=n_sel[1],
@@ -585,7 +585,7 @@ if display == "Spatial configurations":
         marker_size = points[col] / points[col].max() * 300
 
         node_plot = points.hvplot(
-            geo=True,
+            #geo=True,
             hover_cols=['Region', col],
             s=marker_size,
             c="#454545",
