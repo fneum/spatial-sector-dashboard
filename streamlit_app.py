@@ -524,7 +524,7 @@ if display == "Spatial configurations":
     plot = gdf.hvplot(
         #geo=True,
         height=720,
-        #tiles=config["tiles"],
+        tiles=config["tiles"],
         **kwargs
     ).opts(**opts)
 
