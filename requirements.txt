@@ -1,6 +1,6 @@
-streamlit
+streamlit>=1.16
 pyyaml
-numpy
+numpy<1.24
 pandas
 matplotlib
 plotly
@@ -9,6 +9,7 @@ hvplot
 geopandas
 networkx
 holoviews
+panel
 geoviews
 cartopy
 pyproj

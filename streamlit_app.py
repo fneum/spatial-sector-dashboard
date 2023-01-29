@@ -15,6 +15,8 @@ import hvplot.pandas
 
 from helpers import prepare_colors, rename_techs_tyndp, get_cmap
 
+CACHE_TTL = 24*3600 # seconds
+
 def plot_sankey(connections):
 
     labels = np.unique(connections[["source", "target"]])
@@ -94,7 +96,7 @@ def plot_carbon_sankey(co2):
     return fig
 
 
-@st.cache
+@st.cache(ttl=CACHE_TTL)
 def nodal_balance(power_grid, hydrogen_grid, carrier):
 
     fn = f"data/{power_grid}/{hydrogen_grid}/balance-ts-{carrier}.csv"
@@ -110,7 +112,7 @@ def nodal_balance(power_grid, hydrogen_grid, carrier):
     
     return df
 
-@st.cache
+@st.cache(ttl=CACHE_TTL)
 def load_report(power_grid, hydrogen_grid):
     fn1 = "data/report.csv"
     fn2 = f"data/{power_grid}/{hydrogen_grid}/report.csv"
@@ -172,21 +174,22 @@ def load_report(power_grid, hydrogen_grid):
     return df
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True, ttl=CACHE_TTL)
 def load_regions():
     fn = "data/regions_onshore_elec_s_181.geojson"
     gdf = gpd.read_file(fn).set_index('name')
     gdf['name'] = gdf.index
+    gdf.geometry = gdf.to_crs(3035).geometry.simplify(1000).to_crs(4326)
     return gdf
 
 
-@st.cache
+@st.cache(ttl=CACHE_TTL)
 def load_positions():
     buses = pd.read_csv("data/buses.csv", index_col=0)
     return pd.concat([buses.x, buses.y], axis=1).apply(tuple, axis=1).to_dict()
 
 
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
 def make_electricity_graph(power_grid, hydrogen_grid):
 
     edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-electricity.csv", index_col=0)
@@ -201,11 +204,9 @@ def make_electricity_graph(power_grid, hydrogen_grid):
     attr = ["Total Capacity (GW)", "Reinforcement (GW)", "Original Capacity (GW)", "Maximum Capacity (GW)", "Technology", "Length (km)"]
     G = nx.from_pandas_edgelist(edges, 'bus0', 'bus1', edge_attr=attr)
 
-    pos = load_positions()
+    return G
 
-    return G, pos
-
-@st.cache(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
 def make_hydrogen_graph(power_grid, hydrogen_grid):
 
     edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-hydrogen.csv", index_col=0)
@@ -220,16 +221,14 @@ def make_hydrogen_graph(power_grid, hydrogen_grid):
     attr = ["Total Capacity (GW)", "New Capacity (GW)", "Retrofitted Capacity (GW)", "Maximum Retrofitting (GW)", "Length (km)", "Name"]
     G = nx.from_pandas_edgelist(edges, 'bus0', 'bus1', edge_attr=attr)
 
-    pos = load_positions()
-
-    return G, pos
+    return G
 
 
 def parse_spatial_options(x):
     return " - ".join(x) if x != 'Nothing' else 'Nothing'
 
 
-#@st.cache
+@st.cache(ttl=CACHE_TTL)
 def load_summary(which):
 
     df = pd.read_csv(f"data/{which}.csv", header=[0,1], index_col=0)
@@ -251,10 +250,9 @@ def load_summary(which):
     df = df.loc[order, :]
 
     to_drop = df.index[df.abs().max(axis=1).fillna(0.0) < 1]
-    print(to_drop)
     df.drop(to_drop, inplace=True)
 
-    return df[df.sum().sort_values().index]
+    return df[df.sum().sort_values().index].T
 
 
 ### MAIN
@@ -279,30 +277,13 @@ st.write(style, unsafe_allow_html=True)
 ## SIDEBAR
 
 with st.sidebar:
-    st.title("Benefits of a Hydrogen Network in Europe")
+    st.title("[Benefits of a Hydrogen Network in Europe](http://arxiv.org/abs/2207.05816)")
 
     st.markdown("""
         **Fabian Neumann, Elisabeth Zeyen, Marta Victoria, Tom Brown**
-
-        Explore trade-offs between electricity grid expansion and a new hydrogen
-        network with repurposed gas pipelines in the European energy system.
     """)
+    # Explore trade-offs between power grid and hydrogen network expansion.
 
-    choices = {"electricity": "yes", "no-electricity": "no"}
-    power_grid = st.radio(
-        ":hammer_and_wrench: Electricity network expansion",
-        choices, 
-        format_func=lambda x: choices[x],
-        horizontal=True
-    )
-
-    choices = {"hydrogen": "yes", "no-hydrogen": "no"}
-    hydrogen_grid = st.radio(
-        ":hammer_and_wrench: Hydrogen network expansion",
-        choices,
-        format_func=lambda x: choices[x],
-        horizontal=True
-    )
 
     pages = [
         "Scenario comparison",
@@ -311,24 +292,78 @@ with st.sidebar:
         "Sankey of energy flows",
         "Sankey of carbon flows"
     ]
-    display = st.radio("Pages", pages)
+    display = st.selectbox("Pages", pages, help="Choose your view on the system.")
 
-    st.info("""
-        :book:  [Read the paper](http://arxiv.org/abs/2207.05816)
+    choices = {"electricity": "yes", "no-electricity": "no"}
+    power_grid = st.radio(
+        ":zap: Electricity network expansion",
+        choices, 
+        format_func=lambda x: choices[x],
+        horizontal=True
+    )
 
-        :arrow_down: [Download the data](http://doi.org/10.5281/zenodo.6821258)
+    choices = {"hydrogen": "yes", "no-hydrogen": "no"}
+    hydrogen_grid = st.radio(
+        ":droplet: Hydrogen network expansion",
+        choices,
+        format_func=lambda x: choices[x],
+        horizontal=True
+    )
 
-        :computer: [Inspect the code](http://github.com/fneum/spatial-sector)
-    """)
+    st.write("---")
 
-    with st.expander("Details"):
-        st.write("""
-            All results were created using the open European energy system model
-            PyPSA-Eur-Sec. The model covers all energy sectors including
-            electricity, buildings, transport, agriculture and industry at high
-            spatio-temporal resolution. The model code is available on
-            [Github](http://github.com/pypsa/pypsa-eur-sec).
-        """)
+    cost_year = st.radio(
+        ":stopwatch: Technology assumptions for year",
+        [2030, 2050],
+        horizontal=True,
+        help='Left button must be selected for all other choices in this segment.',
+    )
+
+    choices = {"no-imports": "no", "imports": "yes"}
+    imports = st.radio(
+        ":earth_africa: All liquid hydrocarbons imported",
+        choices,
+        format_func=lambda x: choices[x],
+        horizontal=True,
+        help='Left button must be selected for all other choices in this segment.',
+    )
+
+    choices = {"meoh": "methanol", "lh2": "liquid hydrogen"}
+    shipping = st.radio(
+        ":ship: Shipping fuel",
+        choices,
+        format_func=lambda x: choices[x],
+        horizontal=True,
+        help='Left button must be selected for all other choices in this segment.',
+    )
+
+    choices = {"onwind": "yes", "no-onwind": "no"}
+    onwind = st.radio(
+        ":wind_blowing_face: Onshore wind expansion",
+        choices,
+        format_func=lambda x: choices[x],
+        horizontal=True,
+        help='Left button must be selected for all other choices in this segment.',
+    )
+
+    if int(cost_year != 2030) + int(imports != "no-imports") + int(shipping != "meoh") + int(onwind != "onwind") > 1:
+        st.error("Sorry, you can only choose one additional sensitivity!")
+
+    # st.info("""
+    #     :book:  [Read the paper](http://arxiv.org/abs/2207.05816)
+    #     :arrow_down: [Download the data](http://doi.org/10.5281/zenodo.6821258)
+    #     :computer: [Inspect the code](http://github.com/fneum/spatial-sector)
+    # """)
+
+
+    # with st.expander("Details"):
+    #     st.write("""
+    #         All results were created using the open European energy system model
+    #         PyPSA-Eur-Sec. The model covers all energy sectors including
+    #         electricity, buildings, transport, agriculture and industry at high
+    #         spatio-temporal resolution. The model code is available on
+    #         [Github](http://github.com/pypsa/pypsa-eur-sec).
+    #     """)
 
 ## PAGES
 
@@ -341,7 +376,7 @@ if display == "Scenario comparison":
 
     df = load_summary(file)
 
-    color = [colors[c] for c in df.index]
+    color = [colors[c] for c in df.columns]
 
     unit = choices[file].split(" (")[1][:-1] # ugly
     tooltips = [
@@ -350,7 +385,7 @@ if display == "Scenario comparison":
     ]
     hover = HoverTool(tooltips=tooltips)
 
-    plot = df.T.hvplot.bar(stacked=True, height=720, color=color, line_width=0, ylabel=choices[file]).opts(tools=[hover])
+    plot = df.hvplot.bar(stacked=True, height=720, color=color, line_width=0, ylabel=choices[file]).opts(tools=[hover])
 
     st.bokeh_chart(hv.render(plot, backend='bokeh'), use_container_width=True)
 
@@ -418,8 +453,6 @@ if display == "System operation":
 if display == "Spatial configurations":
 
     df = load_report(power_grid, hydrogen_grid)
-
-    st.table(df.columns)
 
     st.title("Spatial Configurations")
 
@@ -497,13 +530,15 @@ if display == "Spatial configurations":
 
     if n_sel[0] == "Hydrogen Network" and not hydrogen_grid == 'no-hydrogen':
 
-        H, posH = make_hydrogen_graph(power_grid, hydrogen_grid)
+        H = make_hydrogen_graph(power_grid, hydrogen_grid)
+
+        pos = load_positions()
 
         scale = pd.Series(nx.get_edge_attributes(H, n_sel[1])).max() / 10
 
         network_plot = hvnx.draw(
             H,
-            pos=posH,
+            pos=pos,
             responsive=True,
             geo=True,
             node_size=5,
@@ -517,11 +552,13 @@ if display == "Spatial configurations":
 
     elif n_sel[0] == "Electricity Network":
 
-        E, posE = make_electricity_graph(power_grid, hydrogen_grid)
+        E = make_electricity_graph(power_grid, hydrogen_grid)
+
+        pos = load_positions()
 
         network_plot = hvnx.draw(
             E,
-            pos=posE,
+            pos=pos,
             responsive=True,
             geo=True,
             node_size=5,
@@ -561,7 +598,7 @@ if display == "Spatial configurations":
 
 if display == "Sankey of carbon flows":
 
-    st.title("Carbon Sankes")
+    st.title("Carbon Sankeys")
 
     df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey-carbon.csv")
 
@@ -570,7 +607,7 @@ if display == "Sankey of carbon flows":
 
 if display == "Sankey of energy flows":
 
-    st.title("Energy Sankes")
+    st.title("Energy Sankeys")
 
     df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey.csv")
 
