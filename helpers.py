@@ -137,13 +137,13 @@ def prepare_colors(config):
 def get_cmap(c):
     if "heat" in c:
         return "Reds"
+    elif "import-export" in c:
+        return "PiYG_r"
     elif "solar" in c:
         return "Oranges"
     elif "hydrogen" in c:
         return "Purples"
     elif "bio" in c or "battery" in c:
         return "Greens"
-    elif "import-export" in c:
-        return "PiYG_r"
     else: 
         return 'Blues'

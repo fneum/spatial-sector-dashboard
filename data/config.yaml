@@ -45,6 +45,7 @@ tech_colors:
   oil: '#c9c9c9'
   oil boiler: '#adadad'
   agriculture machinery oil: '#949494'
+  agriculture machinery: '#abdeff'
   shipping oil: "#808080"
   land transport oil: '#afafaf'
   # nuclear
@@ -62,11 +63,14 @@ tech_colors:
   Lignite marginal: '#826837'
   # biomass
   biogas: '#e3d37d'
+  biogas upgrading: '#e3d37d'
   biomass: '#baa741'
   solid biomass: '#baa741'
+  solid biomass CHP: '#baa741'
   solid biomass transport: '#baa741'
   solid biomass for industry: '#7a6d26'
   solid biomass for industry CC: '#47411c'
+  solid biomass CHP CC: '#aeb841'
   solid biomass for industry co2 from atmosphere: '#736412'
   solid biomass for industry co2 to stored: '#47411c'
   # power transmission
@@ -111,7 +115,9 @@ tech_colors:
   air heat pump: '#36eb41'
   ground heat pump: '#2fb537'
   Ambient: '#98eb9d'
+  gas CHP: '#8a5751'
   CHP: '#8a5751'
+  gas CHP CC: '#634643'
   CHP CC: '#634643'
   CHP heat: '#8a5751'
   CHP electric: '#8a5751'
@@ -136,6 +142,7 @@ tech_colors:
   H2 pipeline retrofitted: '#ba99b5'
   H2 Fuel Cell: '#c251ae'
   H2 Electrolysis: '#ff29d9'
+  power-to-hydrogen: '#ff29d9'
   # syngas
   Sabatier: '#9850ad'
   methanation: '#c44ce6'
@@ -145,12 +152,21 @@ tech_colors:
   Fischer-Tropsch: '#25c49a'
   liquid: '#25c49a'
   kerosene for aviation: '#a1ffe6'
+  aviation fuels: '#a1ffe6'
   naphtha for industry: '#57ebc4'
+  methanolisation: '#83d6d5'
+  methanol: '#468c8b'
+  shipping methanol: '#468c8b'
+  shipping fuels: '#468c8b'
+  shipping methanol emissions: '#468c8b'
+  methanol emissions: '#468c8b'
   # co2
   CC: '#f29dae'
+  carbon capture: '#f29dae'
   CCS: '#f29dae'
   CO2 sequestration: '#f29dae'
   DAC: '#ff5270'
+  direct air capture: '#ff5270'
   co2 stored: '#f2385a'
   co2: '#f29dae'
   co2 vent: '#ffd4dc'
@@ -161,6 +177,7 @@ tech_colors:
   process emissions to stored: '#444444'
   process emissions to atmosphere: '#888888'
   oil emissions: '#aaaaaa'
+  liquid hydrocarbons emissions: '#aaaaaa'
   shipping oil emissions: "#555555"
   land transport oil emissions: '#777777'
   agriculture machinery oil emissions: '#333333'
@@ -179,6 +196,7 @@ tech_colors:
   import shipping-ftfuel: '#bdb093'
   import hvdc: '#91856a'
   fossil oil and gas: '#ababab'
+  green e-fuel imports: '#03a2ff'
 preferred_order:
   - H2 storage
   - hydrogen storage
@@ -273,15 +291,14 @@ spatial:
     - ["Market Values (€/MWh)", "Offshore Wind (DC)"]
     - ["Market Values (€/MWh)", "Solar PV (utility)"]
     - ["Market Values (€/MWh)", "Solar PV (rooftop)"]
-    - ["Market Prices (€/MWh)", "Hydrogen"]
+    - ["Market Prices (€/MWh)", "hydrogen"]
     - ["Market Prices (€/MWh)", "Electricity"]
     - ["Market Prices (€/MWh)", "Heat"]
     - ["Potential (TWh)", "Hydrogen Storage (nearshore cavern)"]
     - ["Potential (TWh)", "Biogas"]
     - ["Potential (TWh)", "Solid Biomass"]
-    - ["Storage Capacity (GWh)", "Hydrogen"]
-    - ["Storage Capacity (GWh)", "battery"]
-    - ["Storage Capacity (GWh)", "home battery"]
+    - ["Storage Capacity (GWh)", "hydrogen"]
+    - ["Storage Capacity (GWh)", "battery storage"]
     - ["Storage Capacity (GWh)", "hot water storage"]
     - ["Used Potential (%)", "Onshore Wind"]
     - ["Used Potential (%)", "Offshore Wind (AC)"]
@@ -301,17 +318,18 @@ spatial:
 operation:
   carrier:
     total-electricity: Total Electricity
-    AC: High Voltage Electricity
-    low voltage: Low Voltage Electricity
+    total-heat: Total Heating
     H2: Hydrogen
     gas: Methane
-    # methanol: Methanol
-    oil: Liquid Hydrocarbons
-    co2: Carbon Dioxide
+    total-liquid-hydrocarbons: Liquid Hydrocarbons
     co2 stored: Stored Carbon Dioxide
-    total-heat: Total Heating
-    urban central heat: Urban Central Heating
-    residential rural heat: Residential Rural Building Heating
+    co2: Carbon Dioxide
+    # AC: High Voltage Electricity
+    # low voltage: Low Voltage Electricity
+    # urban central heat: Urban Central Heating
+    # residential rural heat: Residential Rural Building Heating
+    # methanol: Methanol
+    # oil: Liquid Hydrocarbons
   resolution:
     3H: 3-hourly
     24H: daily
@@ -319,7 +337,17 @@ operation:
 
 scenarios:
   costs: Total System Costs (bn€/a)
-  "capacities-generators": Generation Capacities (GW)
-  "capacities-stores": Storage Capacities (TWh)
-  "capacities-links": Conversion Capacities (GW)
-  energy: Energy Balance (TWh)
+  generation: Generation Capacities (GW)
+  storage: Storage Capacities (TWh)
+  conversion: Conversion Capacities (GW)
+  energy: Energy Balance (TWh/a)
+  co2: Carbon Dioxide Balance (MtCO2/a)
+  # hydrogen: Hydrogen Balance (TWh/a)
+
+ylim:
+  costs: [0,1000]
+  generation: [0,7000]
+  storage: [0,200]
+  conversion: [0,11000]
+  energy: [-15000,15000]
+  co2: [-600,600]

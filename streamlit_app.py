@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import xarray as xr
 import yaml
 import plotly.graph_objects as go
 from matplotlib.colors import to_rgba
@@ -97,10 +98,11 @@ def plot_carbon_sankey(co2):
 
 
 @st.cache(ttl=CACHE_TTL)
-def nodal_balance(power_grid, hydrogen_grid, carrier):
+def nodal_balance(carrier, **kwargs):
 
-    fn = f"data/{power_grid}/{hydrogen_grid}/balance-ts-{carrier}.csv"
-    df = pd.read_csv(fn, index_col=0, parse_dates=True)
+    ds = xr.open_dataset("data/time-series.nc")
+
+    df = ds[carrier].sel(**sel, drop=True).to_pandas().dropna(how='all', axis=1)
 
     df = df.groupby(df.columns.map(rename_techs_tyndp), axis=1).sum()
 
@@ -113,19 +115,17 @@ def nodal_balance(power_grid, hydrogen_grid, carrier):
     return df
 
 @st.cache(ttl=CACHE_TTL)
-def load_report(power_grid, hydrogen_grid):
-    fn1 = "data/report.csv"
-    fn2 = f"data/{power_grid}/{hydrogen_grid}/report.csv"
-    df = pd.concat([
-        pd.read_csv(fn1, index_col=0, header=[0,1]),
-        pd.read_csv(fn2, index_col=0, header=[0,1])
-    ], axis=1)
+def load_report(**kwargs):
+    ds1 = xr.open_dataset("data/resources.nc")
+    ds2 = xr.open_dataset("data/report.nc")
+    ds = xr.merge([ds1,ds2])
+    df = ds.sel(**sel, drop=True).to_dataframe().unstack(level=1).dropna(how='all', axis=1)
 
     translate_0 = {
         "demand": "Demand (TWh)",
         "capacity_factor": "Capacity Factors (%)",
         "cop": "Coefficient of Performance (-)",
-        "biomass_potentials": "Potential (TWh)",
+        "biomass_potentials": "Potentiacl (TWh)",
         "salt_caverns": "Potential (TWh)",
         "potential_used": "Used Potential (%)",
         "curtailment": "Curtailment (%)",
@@ -140,7 +140,9 @@ def load_report(power_grid, hydrogen_grid):
     translate_1 = {
         "electricity": "Electricity",
         "AC": "Electricity",
+        "transmission lines": "Electricity",
         "H2": "Hydrogen",
+        "H2 storage": "hydrogen",
         "hydrogen": "Hydrogen",
         "oil": "Liquid Hydrocarbons",
         "total": "Total",
@@ -163,9 +165,9 @@ def load_report(power_grid, hydrogen_grid):
         "biogas": "Biogas",
         "biomass": "Biomass",
         "solid biomass": "Solid Biomass",
-        "nearshore caverns": "Hydrogen Storage (nearshore cavern)",
-        "onshore caverns": "Hydrogen Storage (onshore cavern)",
-        "offshore caverns": "Hydrogen Storage (offshore cavern)",
+        "nearshore": "Hydrogen Storage (nearshore cavern)",
+        "onshore": "Hydrogen Storage (onshore cavern)",
+        "offshore": "Hydrogen Storage (offshore cavern)",
     }
 
     df.rename(columns=translate_0, level=0, inplace=True)
@@ -190,9 +192,10 @@ def load_positions():
 
 
 @st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
-def make_electricity_graph(power_grid, hydrogen_grid):
+def make_electricity_graph(**kwargs):
 
-    edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-electricity.csv", index_col=0)
+    ds = xr.open_dataset("data/electricity-network.nc")
+    edges = ds.sel(**kwargs, drop=True).to_pandas()
 
     edges["Total Capacity (GW)"] = edges.s_nom_opt.clip(lower=1e-3)
     edges["Reinforcement (GW)"] = (edges.s_nom_opt - edges.s_nom).clip(lower=1e-3)
@@ -207,9 +210,10 @@ def make_electricity_graph(power_grid, hydrogen_grid):
     return G
 
 @st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
-def make_hydrogen_graph(power_grid, hydrogen_grid):
+def make_hydrogen_graph(**kwargs):
 
-    edges = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/edges-hydrogen.csv", index_col=0)
+    ds = xr.open_dataset("data/hydrogen-network.nc")
+    edges = ds.sel(**kwargs, drop=True).to_pandas()
 
     edges["Total Capacity (GW)"] = edges.p_nom_opt.clip(lower=1e-3)
     edges["New Capacity (GW)"] = edges.p_nom_opt_new.clip(lower=1e-3)
@@ -277,7 +281,7 @@ st.write(style, unsafe_allow_html=True)
 ## SIDEBAR
 
 with st.sidebar:
-    st.title("[Benefits of a Hydrogen Network in Europe](http://arxiv.org/abs/2207.05816)")
+    st.title("[The Potential Role of a Hydrogen Network in Europe](http://arxiv.org/abs/2207.05816)")
 
     st.markdown("""
         **Fabian Neumann, Elisabeth Zeyen, Marta Victoria, Tom Brown**
@@ -294,16 +298,18 @@ with st.sidebar:
     ]
     display = st.selectbox("Pages", pages, help="Choose your view on the system.")
 
-    choices = {"electricity": "yes", "no-electricity": "no"}
-    power_grid = st.radio(
+    sel = {}
+
+    choices = {1: "yes", 0: "no"}
+    sel["power_grid"] = st.radio(
         ":zap: Electricity network expansion",
         choices, 
         format_func=lambda x: choices[x],
         horizontal=True
     )
 
-    choices = {"hydrogen": "yes", "no-hydrogen": "no"}
-    hydrogen_grid = st.radio(
+    choices = {1: "yes", 0: "no"}
+    sel["hydrogen_grid"] = st.radio(
         ":droplet: Hydrogen network expansion",
         choices,
         format_func=lambda x: choices[x],
@@ -312,15 +318,17 @@ with st.sidebar:
 
     st.write("---")
 
-    cost_year = st.radio(
+    choices = {0: "2030", 1: "2050"}
+    sel["optimistic_costs"] = st.radio(
         ":stopwatch: Technology assumptions for year",
-        [2030, 2050],
+        choices,
+        format_func=lambda x: choices[x],
         horizontal=True,
         help='Left button must be selected for all other choices in this segment.',
     )
 
-    choices = {"no-imports": "no", "imports": "yes"}
-    imports = st.radio(
+    choices = {0: "no", 1: "yes"}
+    sel["imports"] = st.radio(
         ":earth_africa: All liquid hydrocarbons imported",
         choices,
         format_func=lambda x: choices[x],
@@ -328,8 +336,8 @@ with st.sidebar:
         help='Left button must be selected for all other choices in this segment.',
     )
 
-    choices = {"meoh": "methanol", "lh2": "liquid hydrogen"}
-    shipping = st.radio(
+    choices = {0: "methanol", 1: "liquid hydrogen"}
+    sel["hydrogen_in_shipping"] = st.radio(
         ":ship: Shipping fuel",
         choices,
         format_func=lambda x: choices[x],
@@ -337,8 +345,8 @@ with st.sidebar:
         help='Left button must be selected for all other choices in this segment.',
     )
 
-    choices = {"onwind": "yes", "no-onwind": "no"}
-    onwind = st.radio(
+    choices = {0: "yes", 1: "no"}
+    sel["no_onwind"] = st.radio(
         ":wind_blowing_face: Onshore wind expansion",
         choices,
         format_func=lambda x: choices[x],
@@ -346,8 +354,8 @@ with st.sidebar:
         help='Left button must be selected for all other choices in this segment.',
     )
 
-    if int(cost_year != 2030) + int(imports != "no-imports") + int(shipping != "meoh") + int(onwind != "onwind") > 1:
-        st.error("Sorry, you can only choose one additional sensitivity!")
+    number_sensitivities = sel["optimistic_costs"] + sel["imports"] + sel["hydrogen_in_shipping"] + sel["no_onwind"]
+
 
     # st.info("""
     #     :book:  [Read the paper](http://arxiv.org/abs/2207.05816)
@@ -367,29 +375,51 @@ with st.sidebar:
 
 ## PAGES
 
-if display == "Scenario comparison":
+if (display == "Scenario comparison") and (number_sensitivities <= 1):
 
     st.title("Scenario Comparison")
 
     choices = config["scenarios"]
-    file = st.selectbox("View", choices, format_func=lambda x: choices[x], label_visibility='hidden')
+    idx = st.selectbox("View", choices, format_func=lambda x: choices[x], label_visibility='hidden')
 
-    df = load_summary(file)
+    ds = xr.open_dataset("data/scenarios.nc")
+
+    accessors = {k: v for k, v in sel.items() if k not in ['power_grid', 'hydrogen_grid']}
+    df = ds[idx].sel(**accessors, drop=True).to_dataframe().squeeze().unstack(level=0).dropna(axis=1)
+
+    to_rename = {
+        "1.0": "without power expansion",
+        "opt": "with power grid expansion",
+        "H2 grid": "with hydrogen network",
+        "no H2 grid": "without hydrogen network",
+    }
+
+    df.rename(index=to_rename, inplace=True)
+    df.index = ["\n".join(col).strip() for col in df.index.values]
+
+    df.sort_index(inplace=True)
+
+    df = df[df.sum().sort_values(ascending=False).index]
+
+    if idx == 'storage':
+        df.drop("carbon capture", axis=1, inplace=True)
 
     color = [colors[c] for c in df.columns]
 
-    unit = choices[file].split(" (")[1][:-1] # ugly
+    unit = choices[idx].split(" (")[1][:-1] # ugly
     tooltips = [
-        ('technology', "@Variable"),
+        ('technology', "@carrier"),
         ('value', " ".join(['@value{0.00}', unit])),
     ]
     hover = HoverTool(tooltips=tooltips)
 
-    plot = df.hvplot.bar(stacked=True, height=720, color=color, line_width=0, ylabel=choices[file]).opts(tools=[hover])
+    ylim = config["ylim"][idx]
+
+    plot = df.hvplot.bar(stacked=True, height=720, color=color, ylim=ylim, line_width=0, ylabel=choices[idx]).opts(fontscale=1.3, tools=[hover])
 
     st.bokeh_chart(hv.render(plot, backend='bokeh'), use_container_width=True)
 
-if display == "System operation":
+if (display == "System operation") and (number_sensitivities <= 1):
 
     st.title("System Operation")
 
@@ -414,7 +444,7 @@ if display == "System operation":
             label_visibility='hidden'
         )
 
-    df = nodal_balance(power_grid, hydrogen_grid, carrier)
+    df = nodal_balance(carrier, **sel)
 
     ts = df.loc[values[0]:values[1]].resample(res).mean()
 
@@ -450,9 +480,9 @@ if display == "System operation":
     st.bokeh_chart(hv.render(p_consumption, backend='bokeh'), use_container_width=True)
 
 
-if display == "Spatial configurations":
+if (display == "Spatial configurations") and (number_sensitivities <= 1):
 
-    df = load_report(power_grid, hydrogen_grid)
+    df = load_report(**sel)
 
     st.title("Spatial Configurations")
 
@@ -522,15 +552,15 @@ if display == "Spatial configurations":
         )
 
     plot = gdf.hvplot(
-        #geo=True,
+        # geo=True,
         height=720,
         tiles=config["tiles"],
         **kwargs
     ).opts(**opts)
 
-    if n_sel[0] == "Hydrogen Network" and not hydrogen_grid == 'no-hydrogen':
+    if n_sel[0] == "Hydrogen Network" and sel["hydrogen_grid"]:
 
-        H = make_hydrogen_graph(power_grid, hydrogen_grid)
+        H = make_hydrogen_graph(**sel)
 
         pos = load_positions()
 
@@ -552,7 +582,7 @@ if display == "Spatial configurations":
 
     elif n_sel[0] == "Electricity Network":
 
-        E = make_electricity_graph(power_grid, hydrogen_grid)
+        E = make_electricity_graph(**sel)
 
         pos = load_positions()
 
@@ -570,7 +600,7 @@ if display == "Spatial configurations":
 
         plot *= network_plot
 
-    elif n_sel[0] == "Hydrogen Network" and hydrogen_grid == 'no-hydrogen':
+    elif n_sel[0] == "Hydrogen Network" and not sel["hydrogen_grid"]:
         st.warning("Asked to plot hydrogen network in scenario without hydrogen network. Skipping request.")
 
     if not b_sel[0] == "Nothing":
@@ -596,20 +626,34 @@ if display == "Spatial configurations":
 
     st.bokeh_chart(hv.render(plot, backend='bokeh'), use_container_width=True)
 
-if display == "Sankey of carbon flows":
+if (display == "Sankey of carbon flows") and (number_sensitivities <= 1):
 
     st.title("Carbon Sankeys")
 
-    df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey-carbon.csv")
+    if sel["imports"]:
+        st.warning('Sorry, the requested chart is currently not available.', icon="🤖")
 
-    st.plotly_chart(plot_carbon_sankey(df), use_container_width=True)
+    else:
+
+        ds = xr.open_dataset("data/carbon-sankey.nc")
+        df = ds.sel(**sel, drop=True).to_pandas().dropna()
+
+        st.plotly_chart(plot_carbon_sankey(df), use_container_width=True)
 
 
-if display == "Sankey of energy flows":
+if (display == "Sankey of energy flows") and (number_sensitivities <= 1):
 
     st.title("Energy Sankeys")
 
-    df = pd.read_csv(f"data/{power_grid}/{hydrogen_grid}/sankey.csv")
+    ds = xr.open_dataset("data/energy-sankey.nc")
+    df = ds.sel(**sel, drop=True).to_pandas().dropna()
 
     st.plotly_chart(plot_sankey(df), use_container_width=True)
 
+if number_sensitivities > 1:
+    
+    st.write("")
+    st.write("")
+
+    message = "Sorry, you can only choose one additional sensitivity in the lower block of the left panel!"
+    st.error(message, icon="🚨")
