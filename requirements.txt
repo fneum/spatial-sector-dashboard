@@ -15,3 +15,4 @@ cartopy
 pyproj
 scipy
 xarray
+netcdf4
