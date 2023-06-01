@@ -2,7 +2,7 @@
 
 Code for interactive dashboard for results exploration.
 
-See live version at: [h2-network.streamlit.app](httsp://h2-network.streamlit.app)
+See live version at: [h2-network.streamlit.app](https://h2-network.streamlit.app)
 
 ## Local Installation and Usage
 
