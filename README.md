@@ -1,4 +1,6 @@
-# Streamlit Dashboard for "The Potential Role of a Hydrogen Network in Europe"
+# Interactive dashboard code for the paper "The Potential Role of a Hydrogen Network in Europe"
+
+[![DOI](https://zenodo.org/badge/451538981.svg)](https://zenodo.org/badge/latestdoi/451538981)
 
 Code for interactive dashboard for results exploration.
 
