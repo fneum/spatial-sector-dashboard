@@ -553,6 +553,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
 
     plot = gdf.hvplot(
         geo=True,
+        projection='GOOGLE_MERCATOR',
         height=720,
         tiles=config["tiles"],
         **kwargs
@@ -616,6 +617,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
 
         node_plot = points.hvplot(
             geo=True,
+            projection='GOOGLE_MERCATOR',
             hover_cols=['Region', col],
             s=marker_size,
             c="#454545",
