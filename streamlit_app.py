@@ -616,7 +616,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
 
         node_plot = points.hvplot(
             geo=True,
-            #hover_cols=['Region', col],
+            hover_cols=['Region', col],
             s=marker_size,
             c="#454545",
             alpha=0.7
