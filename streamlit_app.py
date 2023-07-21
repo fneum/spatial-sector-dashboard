@@ -97,7 +97,7 @@ def plot_carbon_sankey(co2):
     return fig
 
 
-@st.cache(ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def nodal_balance(carrier, **kwargs):
 
     ds = xr.open_dataset("data/time-series.nc")
@@ -114,7 +114,7 @@ def nodal_balance(carrier, **kwargs):
     
     return df
 
-@st.cache(ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def load_report(**kwargs):
     ds1 = xr.open_dataset("data/resources.nc")
     ds2 = xr.open_dataset("data/report.nc")
@@ -176,7 +176,7 @@ def load_report(**kwargs):
     return df
 
 
-@st.cache(allow_output_mutation=True, ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def load_regions():
     fn = "data/regions_onshore_elec_s_181.geojson"
     gdf = gpd.read_file(fn).set_index('name')
@@ -185,13 +185,13 @@ def load_regions():
     return gdf
 
 
-@st.cache(ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def load_positions():
     buses = pd.read_csv("data/buses.csv", index_col=0)
     return pd.concat([buses.x, buses.y], axis=1).apply(tuple, axis=1).to_dict()
 
 
-@st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def make_electricity_graph(**kwargs):
 
     ds = xr.open_dataset("data/electricity-network.nc")
@@ -209,7 +209,7 @@ def make_electricity_graph(**kwargs):
 
     return G
 
-@st.cache(allow_output_mutation=True,ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def make_hydrogen_graph(**kwargs):
 
     ds = xr.open_dataset("data/hydrogen-network.nc")
@@ -232,7 +232,7 @@ def parse_spatial_options(x):
     return " - ".join(x) if x != 'Nothing' else 'Nothing'
 
 
-@st.cache(ttl=CACHE_TTL)
+@st.cache_data(ttl=CACHE_TTL)
 def load_summary(which):
 
     df = pd.read_csv(f"data/{which}.csv", header=[0,1], index_col=0)
@@ -281,7 +281,7 @@ st.write(style, unsafe_allow_html=True)
 ## SIDEBAR
 
 with st.sidebar:
-    st.title("[The Potential Role of a Hydrogen Network in Europe](http://arxiv.org/abs/2207.05816)")
+    st.title("[The Potential Role of a Hydrogen Network in Europe](https://doi.org/10.1016/j.joule.2023.06.016)")
 
     st.markdown("""
         **Fabian Neumann, Elisabeth Zeyen, Marta Victoria, Tom Brown**
@@ -552,7 +552,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
         )
 
     plot = gdf.hvplot(
-        # geo=True,
+        geo=True,
         height=720,
         tiles=config["tiles"],
         **kwargs
@@ -570,7 +570,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
             H,
             pos=pos,
             responsive=True,
-            #geo=True,
+            geo=True,
             node_size=5,
             node_color='k',
             edge_color=n_sel[1],
@@ -590,7 +590,7 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
             E,
             pos=pos,
             responsive=True,
-            #geo=True,
+            geo=True,
             node_size=5,
             node_color='k',
             edge_color=n_sel[1],
@@ -615,8 +615,8 @@ if (display == "Spatial configurations") and (number_sensitivities <= 1):
         marker_size = points[col] / points[col].max() * 300
 
         node_plot = points.hvplot(
-            #geo=True,
-            hover_cols=['Region', col],
+            geo=True,
+            #hover_cols=['Region', col],
             s=marker_size,
             c="#454545",
             alpha=0.7
