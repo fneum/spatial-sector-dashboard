@@ -5,11 +5,11 @@ pandas
 matplotlib
 plotly
 bokeh==2.4.3
-hvplot
+hvplot<0.9
 geopandas
 networkx
-holoviews
-panel
+holoviews<=1.16
+panel<=1.2.0
 geoviews
 cartopy
 pyproj
