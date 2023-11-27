@@ -9,7 +9,7 @@ hvplot<0.9
 geopandas
 networkx
 holoviews<=1.16
-panel<=1.2.0
+panel<=1.2
 geoviews
 cartopy
 pyproj
